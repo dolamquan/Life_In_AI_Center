@@ -1,0 +1,148 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Tutor {
+  id               Int      @id @default(autoincrement())
+  slug             String   @unique
+  name             String
+  description      String
+  subject          String
+  starterPrompts   String
+  suggestedLessons String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  documents    Document[]
+  chatSessions ChatSession[]
+  studyGoals   StudyGoal[]
+}
+
+model Document {
+  id        Int      @id @default(autoincrement())
+  tutorId   Int
+  title     String
+  fileName  String
+  rawText   String?
+  createdAt DateTime @default(now())
+
+  tutor  Tutor           @relation(fields: [tutorId], references: [id])
+  chunks DocumentChunk[]
+}
+
+// embedding field omitted — pgvector is PostgreSQL-only; will be added back in Phase 6 when switching to Postgres
+model DocumentChunk {
+  id         Int      @id @default(autoincrement())
+  documentId Int
+  chunkIndex Int
+  content    String
+  createdAt  DateTime @default(now())
+
+  document Document @relation(fields: [documentId], references: [id])
+}
+
+model ChatSession {
+  id        Int       @id @default(autoincrement())
+  tutorId   Int
+  mode      String    @default("DOCUMENT_GROUNDED")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  tutor     Tutor                 @relation(fields: [tutorId], references: [id])
+  messages  ChatMessage[]
+  questions TutorQuestion[]
+  summary   SessionSummary?
+}
+
+model ChatMessage {
+  id        Int      @id @default(autoincrement())
+  sessionId Int
+  role      String
+  content   String
+  sources   String?
+  createdAt DateTime @default(now())
+
+  session ChatSession @relation(fields: [sessionId], references: [id])
+}
+
+model StudyGoal {
+  id        Int           @id @default(autoincrement())
+  tutorId   Int
+  goalText  String
+  goalType  String
+  createdAt DateTime      @default(now())
+
+  tutor     Tutor      @relation(fields: [tutorId], references: [id])
+  studyPlan StudyPlan?
+}
+
+model StudyPlan {
+  id            Int      @id @default(autoincrement())
+  studyGoalId   Int      @unique
+  estimatedTime String
+  createdAt     DateTime @default(now())
+
+  studyGoal StudyGoal       @relation(fields: [studyGoalId], references: [id])
+  items     StudyPlanItem[]
+}
+
+model StudyPlanItem {
+  id               Int      @id @default(autoincrement())
+  studyPlanId      Int
+  order            Int
+  title            String
+  objective        String
+  estimatedMinutes Int
+  completed        Boolean  @default(false)
+
+  studyPlan StudyPlan @relation(fields: [studyPlanId], references: [id])
+}
+
+model TutorQuestion {
+  id           Int          @id @default(autoincrement())
+  sessionId    Int
+  questionText String
+  questionType String
+  createdAt    DateTime     @default(now())
+
+  session    ChatSession              @relation(fields: [sessionId], references: [id])
+  evaluation StudentAnswerEvaluation?
+}
+
+model StudentAnswerEvaluation {
+  id               Int      @id @default(autoincrement())
+  questionId       Int      @unique
+  studentAnswer    String
+  score            Int
+  strength         String
+  improvement      String
+  betterAnswer     String
+  followUpQuestion String
+  createdAt        DateTime @default(now())
+
+  question TutorQuestion @relation(fields: [questionId], references: [id])
+}
+
+model SessionSummary {
+  id                  Int      @id @default(autoincrement())
+  sessionId           Int      @unique
+  summaryText         String
+  completedLessons    String
+  keyConcepts         String
+  strengths           String
+  improvementAreas    String
+  recommendedNextStep String
+  completedLessonCount Int
+  totalLessonCount    Int
+  totalStudyMinutes   Int
+  averageScore        Float?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  session ChatSession @relation(fields: [sessionId], references: [id])
+}

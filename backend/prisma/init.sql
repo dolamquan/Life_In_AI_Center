@@ -1,0 +1,127 @@
+PRAGMA foreign_keys = ON;
+
+CREATE TABLE IF NOT EXISTS "Tutor" (
+  "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  "slug" TEXT NOT NULL,
+  "name" TEXT NOT NULL,
+  "description" TEXT NOT NULL,
+  "subject" TEXT NOT NULL,
+  "starterPrompts" TEXT NOT NULL,
+  "suggestedLessons" TEXT NOT NULL,
+  "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt" DATETIME NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS "Tutor_slug_key" ON "Tutor"("slug");
+
+CREATE TABLE IF NOT EXISTS "Document" (
+  "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  "tutorId" INTEGER NOT NULL,
+  "title" TEXT NOT NULL,
+  "fileName" TEXT NOT NULL,
+  "rawText" TEXT,
+  "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "Document_tutorId_fkey" FOREIGN KEY ("tutorId") REFERENCES "Tutor" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS "DocumentChunk" (
+  "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  "documentId" INTEGER NOT NULL,
+  "chunkIndex" INTEGER NOT NULL,
+  "content" TEXT NOT NULL,
+  "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "DocumentChunk_documentId_fkey" FOREIGN KEY ("documentId") REFERENCES "Document" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS "ChatSession" (
+  "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  "tutorId" INTEGER NOT NULL,
+  "mode" TEXT NOT NULL DEFAULT 'DOCUMENT_GROUNDED',
+  "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt" DATETIME NOT NULL,
+  CONSTRAINT "ChatSession_tutorId_fkey" FOREIGN KEY ("tutorId") REFERENCES "Tutor" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS "ChatMessage" (
+  "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  "sessionId" INTEGER NOT NULL,
+  "role" TEXT NOT NULL,
+  "content" TEXT NOT NULL,
+  "sources" TEXT,
+  "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "ChatMessage_sessionId_fkey" FOREIGN KEY ("sessionId") REFERENCES "ChatSession" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS "StudyGoal" (
+  "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  "tutorId" INTEGER NOT NULL,
+  "goalText" TEXT NOT NULL,
+  "goalType" TEXT NOT NULL,
+  "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "StudyGoal_tutorId_fkey" FOREIGN KEY ("tutorId") REFERENCES "Tutor" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS "StudyPlan" (
+  "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  "studyGoalId" INTEGER NOT NULL,
+  "estimatedTime" TEXT NOT NULL,
+  "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "StudyPlan_studyGoalId_fkey" FOREIGN KEY ("studyGoalId") REFERENCES "StudyGoal" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS "StudyPlan_studyGoalId_key" ON "StudyPlan"("studyGoalId");
+
+CREATE TABLE IF NOT EXISTS "StudyPlanItem" (
+  "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  "studyPlanId" INTEGER NOT NULL,
+  "order" INTEGER NOT NULL,
+  "title" TEXT NOT NULL,
+  "objective" TEXT NOT NULL,
+  "estimatedMinutes" INTEGER NOT NULL,
+  "completed" BOOLEAN NOT NULL DEFAULT false,
+  CONSTRAINT "StudyPlanItem_studyPlanId_fkey" FOREIGN KEY ("studyPlanId") REFERENCES "StudyPlan" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS "TutorQuestion" (
+  "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  "sessionId" INTEGER NOT NULL,
+  "questionText" TEXT NOT NULL,
+  "questionType" TEXT NOT NULL,
+  "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "TutorQuestion_sessionId_fkey" FOREIGN KEY ("sessionId") REFERENCES "ChatSession" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS "StudentAnswerEvaluation" (
+  "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  "questionId" INTEGER NOT NULL,
+  "studentAnswer" TEXT NOT NULL,
+  "score" INTEGER NOT NULL,
+  "strength" TEXT NOT NULL,
+  "improvement" TEXT NOT NULL,
+  "betterAnswer" TEXT NOT NULL,
+  "followUpQuestion" TEXT NOT NULL,
+  "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "StudentAnswerEvaluation_questionId_fkey" FOREIGN KEY ("questionId") REFERENCES "TutorQuestion" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS "StudentAnswerEvaluation_questionId_key" ON "StudentAnswerEvaluation"("questionId");
+
+CREATE TABLE IF NOT EXISTS "SessionSummary" (
+  "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  "sessionId" INTEGER NOT NULL,
+  "summaryText" TEXT NOT NULL,
+  "completedLessons" TEXT NOT NULL,
+  "keyConcepts" TEXT NOT NULL,
+  "strengths" TEXT NOT NULL,
+  "improvementAreas" TEXT NOT NULL,
+  "recommendedNextStep" TEXT NOT NULL,
+  "completedLessonCount" INTEGER NOT NULL,
+  "totalLessonCount" INTEGER NOT NULL,
+  "totalStudyMinutes" INTEGER NOT NULL,
+  "averageScore" REAL,
+  "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt" DATETIME NOT NULL,
+  CONSTRAINT "SessionSummary_sessionId_fkey" FOREIGN KEY ("sessionId") REFERENCES "ChatSession" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS "SessionSummary_sessionId_key" ON "SessionSummary"("sessionId");
